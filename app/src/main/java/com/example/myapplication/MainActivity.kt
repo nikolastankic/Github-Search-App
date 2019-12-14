@@ -1,14 +1,8 @@
 package com.example.myapplication
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.SearchView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,25 +11,28 @@ import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.RequestFuture
 import com.android.volley.toolbox.Volley
 import com.example.myapplication.model.RepoInfo
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.android.synthetic.main.repository_layout.view.*
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.math.ceil
+import kotlin.math.min
 
 class MainActivity : AppCompatActivity() {
 
-    private val url = "https://api.github.com/search/repositories?q="
+    private val api_url = "https://api.github.com/search/repositories?q="
     private var searchQuery = ""
+    private var reposCount : Int = 0
+    private var pageCount : Int = 0
+    private val maxPageCount : Int = 34
+    private var loadedPageCount : Int = 0
 
     private lateinit var requestQueue : RequestQueue
-
     private lateinit var repoAdapter : RepoAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,13 +42,24 @@ class MainActivity : AppCompatActivity() {
         requestQueue = Volley.newRequestQueue(this)
 
         recycler.layoutManager = LinearLayoutManager(this)
-        recycler.adapter = RepoAdapter(ArrayList())
+        repoAdapter = RepoAdapter()
+        recycler.adapter = repoAdapter
+        recycler.addOnScrollListener(object : PaginationScrollListener(recycler.layoutManager as LinearLayoutManager) {
+            override fun addNextPage() {
+                if (loadedPageCount < pageCount) {
+                    apiCall(false, loadedPageCount + 1)
+                }
+                isLoading = false
+            }
+
+        })
 
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(p0: String?): Boolean {
                 if (p0 != null) {
                     searchQuery = p0
-                    apiCall()
+                    recycler.scrollToPosition(0)
+                    apiCall(true, 1)
                     return true
                 }
                 return false
@@ -62,26 +70,39 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        apiCall()
     }
 
-    private fun apiCall() {
-        requestQueue.add(
-            JsonObjectRequest(Request.Method.GET, url + searchQuery, null,
-                Response.Listener<JSONObject> {response ->
-                    val reposCount = response
-                        .getInt("total_count")
-                    textView.text = "$reposCount results"
-                    handleResponse(response
-                        .getJSONArray("items"));
-                },
-                Response.ErrorListener {
-                    Toast.makeText(this, "Error", Toast.LENGTH_LONG)
+    private fun apiCall(isNewQuery : Boolean, pageNumber : Int) {
+        var url = api_url + searchQuery + "&page=" + pageNumber
+        var request = JsonObjectRequest(Request.Method.GET, url, null,
+            Response.Listener<JSONObject> {response ->
+                reposCount = response
+                    .getInt("total_count")
+
+                pageCount = min(ceil(reposCount / 30.0).toInt(), maxPageCount)
+
+                handleResponse(response
+                    .getJSONArray("items"), isNewQuery);
+
+                loadedPageCount = pageNumber
+                Log.d("loaded page ", loadedPageCount.toString())
+                val itemCount = repoAdapter.itemCount
+                textView.text = "$reposCount results found - showing $itemCount"
+
+                requestQueue.cancelAll(object : RequestQueue.RequestFilter {
+                    override fun apply(request: Request<*>?): Boolean {
+                        return true
+                    }
+
                 })
-        )
+            },
+            Response.ErrorListener {
+                Toast.makeText(this, "Error", Toast.LENGTH_LONG)
+            })
+        requestQueue.add(request)
     }
 
-    private fun handleResponse(repositories : JSONArray) {
+    private fun handleResponse(repositories : JSONArray, isNewQuery: Boolean) {
         var list : ArrayList<RepoInfo> = ArrayList()
         for (i in 0 until repositories.length()) {
             var repo: JSONObject = repositories.getJSONObject(i)
@@ -97,46 +118,7 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         }
-        recycler.adapter = RepoAdapter(list)
-    }
-
-    class RepoAdapter(val repos : ArrayList<RepoInfo>) : RecyclerView.Adapter<RepoAdapter.ViewHolder>() {
-
-        class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val repoName: TextView = view.repo_name
-            val description: TextView = view.description
-            val language: TextView = view.language
-            val stars: TextView = view.stars
-            val updatedOn: TextView = view.updated_on
-
-            fun bind(repo : RepoInfo) {
-                repoName.setText(repo.name)
-                description.setText(repo.description)
-                language.setText(repo.language)
-                stars.setText(repo.star_count.toString())
-                val dtf = DateTimeFormatter.ofPattern("dd MMM yyyy")
-                updatedOn.setText("Updated on " + dtf.format(repo.updated_on))
-                itemView.setOnClickListener {
-                    itemView.context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repo.link)))
-                }
-            }
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-           return ViewHolder(
-               LayoutInflater
-                   .from(parent.context)
-                   .inflate(R.layout.repository_layout, parent, false)
-           )
-        }
-
-        override fun getItemCount(): Int {
-            return repos.size
-        }
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            holder.bind(repos[position])
-        }
+        repoAdapter.addRepositories(list, isNewQuery)
     }
 
 }
