@@ -7,5 +7,6 @@ data class RepoInfo(
     var description : String,
     var language : String,
     var star_count : Int,
-    var updated_on : LocalDateTime
+    var updated_on : LocalDateTime,
+    var link : String
 ) {}

@@ -1,5 +1,7 @@
 package com.example.myapplication
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -21,8 +23,10 @@ import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.repository_layout.view.*
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.*
 import kotlin.collections.ArrayList
 
 class MainActivity : AppCompatActivity() {
@@ -81,35 +85,40 @@ class MainActivity : AppCompatActivity() {
         var list : ArrayList<RepoInfo> = ArrayList()
         for (i in 0 until repositories.length()) {
             var repo: JSONObject = repositories.getJSONObject(i)
+            val dtf = DateTimeFormatter.ofPattern(("yyyy-MM-dd'T'HH:mm:ss'Z'"))
             list.add(
                 RepoInfo(
                     repo.getString("full_name"),
                     repo.getString("description"),
                     repo.getString("language"),
                     repo.getInt("stargazers_count"),
-                    LocalDateTime.now()
+                    LocalDateTime.from(dtf.parse(repo.getString("updated_at"))),
+                    repo.getString("html_url")
                 )
             )
         }
-        Log.d("list size ", list.size.toString())
         recycler.adapter = RepoAdapter(list)
     }
 
     class RepoAdapter(val repos : ArrayList<RepoInfo>) : RecyclerView.Adapter<RepoAdapter.ViewHolder>() {
 
-        class ViewHolder(holder: View) : RecyclerView.ViewHolder(holder) {
-            val repoName: TextView = holder.repo_name
-            val description: TextView = holder.description
-            val language: TextView = holder.language
-            val stars: TextView = holder.stars
-            val updatedOn: TextView = holder.updated_on
+        class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val repoName: TextView = view.repo_name
+            val description: TextView = view.description
+            val language: TextView = view.language
+            val stars: TextView = view.stars
+            val updatedOn: TextView = view.updated_on
 
             fun bind(repo : RepoInfo) {
                 repoName.setText(repo.name)
                 description.setText(repo.description)
                 language.setText(repo.language)
                 stars.setText(repo.star_count.toString())
-                updatedOn.setText("Updated on " + repo.updated_on.toString())
+                val dtf = DateTimeFormatter.ofPattern("dd MMM yyyy")
+                updatedOn.setText("Updated on " + dtf.format(repo.updated_on))
+                itemView.setOnClickListener {
+                    itemView.context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repo.link)))
+                }
             }
         }
 
