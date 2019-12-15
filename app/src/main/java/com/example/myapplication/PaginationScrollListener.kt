@@ -5,7 +5,9 @@ import androidx.recyclerview.widget.RecyclerView
 
 abstract class PaginationScrollListener(var layoutManager: LinearLayoutManager) : RecyclerView.OnScrollListener() {
 
-    var isLoading = false
+    companion object{
+        var isLoading = false
+    }
 
     override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
         super.onScrolled(recyclerView, dx, dy)

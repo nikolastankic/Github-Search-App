@@ -11,9 +11,9 @@ import com.example.myapplication.model.RepoInfo
 import kotlinx.android.synthetic.main.repository_layout.view.*
 import java.time.format.DateTimeFormatter
 
-class RepoAdapter() : RecyclerView.Adapter<RepoAdapter.ViewHolder>() {
+class RepoAdapter : RecyclerView.Adapter<RepoAdapter.ViewHolder>() {
 
-    private var repos : MutableSet<RepoInfo> = mutableSetOf()
+    private var repos : ArrayList<RepoInfo> = ArrayList()
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val repoName: TextView = view.repo_name
@@ -23,12 +23,22 @@ class RepoAdapter() : RecyclerView.Adapter<RepoAdapter.ViewHolder>() {
         val updatedOn: TextView = view.updated_on
 
         fun bind(repo : RepoInfo) {
-            repoName.setText(repo.name)
-            description.setText(repo.description)
-            language.setText(repo.language)
-            stars.setText(repo.star_count.toString())
+            repoName.text = repo.name
+            if (!repo.description.equals("null")) {
+                description.text = repo.description
+            }
+            else {
+                description.text = ""
+            }
+            if (!repo.language.equals("null")) {
+                language.text = repo.language
+            }
+            else {
+                language.text = "N/A"
+            }
+            stars.text = repo.star_count.toString()
             val dtf = DateTimeFormatter.ofPattern("dd MMM yyyy")
-            updatedOn.setText("Updated on " + dtf.format(repo.updated_on))
+            updatedOn.text = "Updated on " + dtf.format(repo.updated_on)
             itemView.setOnClickListener {
                 itemView.context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(repo.link)))
             }
@@ -48,12 +58,12 @@ class RepoAdapter() : RecyclerView.Adapter<RepoAdapter.ViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(repos.elementAt(position))
+        holder.bind(repos[position])
     }
 
     fun addRepositories(list : ArrayList<RepoInfo>, isNewQuery: Boolean) {
         if (isNewQuery) {
-            repos = mutableSetOf()
+            repos.clear()
         }
         val oldItemCount = itemCount
         repos.addAll(list)
