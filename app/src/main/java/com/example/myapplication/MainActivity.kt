@@ -105,7 +105,7 @@ class MainActivity : AppCompatActivity() {
                     repo.getString("description"),
                     repo.getString("language"),
                     repo.getInt("stargazers_count"),
-                    LocalDateTime.from(dtf.parse(repo.getString("updated_at"))),
+                    LocalDateTime.from(dtf.parse(repo.getString("pushed_at"))),
                     repo.getString("html_url")
                 )
             )
